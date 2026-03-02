@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, Globe } from 'lucide-react';
+import { Plus, Trash2, Globe, Lock, Unlock } from 'lucide-react';
 import { type ExpenseItem, type StockItem } from './types';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -15,6 +15,9 @@ function App() {
     i18n.changeLanguage(i18n.language === 'zh-TW' ? 'en' : 'zh-TW');
   };
 
+  // Lock state
+  const [isLocked, setIsLocked] = useLocalStorage<boolean>('finance-locked', false);
+
   // State
   const [income, setIncome] = useLocalStorage<number>('finance-income', 50000);
 
@@ -25,6 +28,8 @@ function App() {
   const [insuranceExpenses, setInsuranceExpenses] = useLocalStorage<ExpenseItem[]>('finance-insurance', [
     { id: '1', name: '醫療險 / Health Ins.', amount: 2000 }
   ]);
+
+  const [creditLoan, setCreditLoan] = useLocalStorage<number>('finance-credit-loan', 0);
 
   const [twStockPercent, setTwStockPercent] = useLocalStorage<number>('finance-tw-stock-pct', 70);
   const usStockPercent = 100 - twStockPercent; // Computed
@@ -37,7 +42,8 @@ function App() {
     fixedTotal,
     insuranceTotal,
     disposable,
-    investment,
+    investmentGross,
+    investmentNet,
     travel,
     living,
     twStockAmount,
@@ -48,24 +54,26 @@ function App() {
 
     const disposable = Math.max(0, income - fixedTotal - insuranceTotal);
 
-    const investment = Math.floor(disposable * 0.55);
+    const investmentGross = Math.floor(disposable * 0.55);
+    const investmentNet = Math.max(0, investmentGross - creditLoan);
     const travel = Math.floor(disposable * 0.10);
     const living = Math.floor(disposable * 0.35);
 
-    const twStockAmount = Math.floor(investment * (twStockPercent / 100));
-    const usStockAmount = investment - twStockAmount; // Ensures exact total
+    const twStockAmount = Math.floor(investmentNet * (twStockPercent / 100));
+    const usStockAmount = investmentNet - twStockAmount; // Ensures exact total
 
     return {
       fixedTotal,
       insuranceTotal,
       disposable,
-      investment,
+      investmentGross,
+      investmentNet,
       travel,
       living,
       twStockAmount,
       usStockAmount
     };
-  }, [income, fixedExpenses, insuranceExpenses, twStockPercent]);
+  }, [income, fixedExpenses, insuranceExpenses, twStockPercent, creditLoan]);
 
   // Handlers
   const addExpense = (setter: React.Dispatch<React.SetStateAction<ExpenseItem[]>>) => {
@@ -94,85 +102,97 @@ function App() {
           <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
             {t('app_title')}
           </h1>
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-200 dark:ring-slate-700"
-          >
-            <Globe className="w-4 h-4 text-blue-500" />
-            <span className="text-sm font-medium">{i18n.language === 'zh-TW' ? 'EN' : '中文'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLocked(!isLocked)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-200 dark:ring-slate-700 font-medium text-sm ${isLocked
+                ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                }`}
+              title={isLocked ? t('locked') : t('unlocked')}
+            >
+              {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-full shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-200 dark:ring-slate-700"
+            >
+              <Globe className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-medium">{i18n.language === 'zh-TW' ? '中文' : 'EN'}</span>
+            </button>
+          </div>
         </header>
 
-        {/* Top Cards: Income & Core Deductions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Top Section: Income & Allocations */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            {t('income')}
+          </h2>
+          <div className="relative mb-6">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
+            <input
+              type="number"
+              value={income || ''}
+              onChange={(e) => setIncome(Number(e.target.value))}
+              readOnly={false} // Income is always editable per requirement
+              className="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-xl font-bold"
+            />
+          </div>
 
-          {/* Income Card */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              {t('income')}
-            </h2>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
-              <input
-                type="number"
-                value={income || ''}
-                onChange={(e) => setIncome(Number(e.target.value))}
-                className="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-xl font-bold"
-              />
-            </div>
-
-            <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Disposable Income (Smaller) */}
+            <div className="md:w-[35%] p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 flex flex-col justify-center">
               <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-1">{t('disposable')}</p>
-              <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">
+              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 truncate">
                 ${disposable.toLocaleString()}
               </p>
             </div>
-          </div>
 
-          {/* Allocations Overview Card */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-center gap-4">
-            <AllocationRow label={t('investment')} amount={investment} percent="55%" color="blue" />
-            <AllocationRow label={t('living')} amount={living} percent="35%" color="amber" />
-            <AllocationRow label={t('travel')} amount={travel} percent="10%" color="purple" />
+            {/* Allocations Overview (Larger) */}
+            <div className="md:w-[65%] flex flex-col justify-center gap-2">
+              <AllocationRow label={t('investment')} amount={investmentNet} percent="55%" color="blue" />
+              <AllocationRow label={t('living')} amount={living} percent="35%" color="amber" />
+              <AllocationRow label={t('travel')} amount={travel} percent="10%" color="purple" />
+            </div>
           </div>
-
         </div>
 
-        {/* Expenses Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ExpenseCard
-            title={t('fixed_expenses')}
-            total={fixedTotal}
-            items={fixedExpenses}
-            setItems={setFixedExpenses}
-            t={t}
-            color="rose"
-            addExpense={addExpense}
-            updateExpense={updateExpense}
-            removeExpense={removeExpense}
-          />
-          <ExpenseCard
-            title={t('insurance_expenses')}
-            total={insuranceTotal}
-            items={insuranceExpenses}
-            setItems={setInsuranceExpenses}
-            t={t}
-            color="rose"
-            addExpense={addExpense}
-            updateExpense={updateExpense}
-            removeExpense={removeExpense}
-          />
-        </div>
-
-        {/* Investment Details Section */}
+        {/* Investment Details Section (Moved below Income) */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
-          <div className="flex justify-between items-center mb-6">
+
+          {/* Main Title Row (Gross Investment) */}
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-              {t('investment')} Details
+              {t('investment')}
             </h2>
-            <span className="text-xl font-bold text-blue-600 dark:text-blue-400">${investment.toLocaleString()}</span>
+            <span className="text-xl font-bold text-blue-600 dark:text-blue-400">${investmentGross.toLocaleString()}</span>
+          </div>
+
+          {/* Credit Loan Edit Row */}
+          <div className="flex justify-between items-center p-3 mb-4 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30">
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{t('credit_loan')}</span>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-400 text-sm font-medium">$</span>
+              <input
+                type="number"
+                value={creditLoan || ''}
+                onChange={(e) => setCreditLoan(Number(e.target.value))}
+                readOnly={isLocked}
+                className={`w-[120px] md:w-[150px] pl-6 pr-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border-none ring-1 ring-rose-200 dark:ring-rose-800/50 focus:ring-2 focus:ring-rose-400 outline-none transition-all text-right text-sm font-semibold text-rose-600 dark:text-rose-400 ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
+              />
+            </div>
+          </div>
+
+          {/* Usable Stock Amount (Net Investment) */}
+          <div className="flex justify-between items-center p-4 mb-8 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30">
+            <h3 className="text-base font-bold text-blue-800 dark:text-blue-300">
+              {t('usable_stock_amount')}
+            </h3>
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              ${investmentNet.toLocaleString()}
+            </span>
           </div>
 
           {/* Allocation Slider */}
@@ -187,7 +207,8 @@ function App() {
               max="100"
               value={twStockPercent}
               onChange={(e) => setTwStockPercent(Number(e.target.value))}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-blue-500"
+              disabled={isLocked}
+              className={`w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700 accent-blue-500 ${isLocked ? 'opacity-60 pointer-events-none' : ''}`}
             />
           </div>
 
@@ -199,6 +220,7 @@ function App() {
               setItems={setTwStocks}
               t={t}
               color="blue"
+              isLocked={isLocked}
               addExpense={addExpense}
               updateExpense={updateExpense}
               removeExpense={removeExpense}
@@ -210,11 +232,40 @@ function App() {
               setItems={setUsStocks}
               t={t}
               color="indigo"
+              isLocked={isLocked}
               addExpense={addExpense}
               updateExpense={updateExpense}
               removeExpense={removeExpense}
             />
           </div>
+        </div>
+
+        {/* Expenses Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ExpenseCard
+            title={t('fixed_expenses')}
+            total={fixedTotal}
+            items={fixedExpenses}
+            setItems={setFixedExpenses}
+            t={t}
+            color="rose"
+            isLocked={isLocked}
+            addExpense={addExpense}
+            updateExpense={updateExpense}
+            removeExpense={removeExpense}
+          />
+          <ExpenseCard
+            title={t('insurance_expenses')}
+            total={insuranceTotal}
+            items={insuranceExpenses}
+            setItems={setInsuranceExpenses}
+            t={t}
+            color="rose"
+            isLocked={isLocked}
+            addExpense={addExpense}
+            updateExpense={updateExpense}
+            removeExpense={removeExpense}
+          />
         </div>
 
       </div>
@@ -240,7 +291,7 @@ function AllocationRow({ label, amount, percent, color }: any) {
   );
 }
 
-function ExpenseCard({ title, total, items, setItems, t, color, addExpense, updateExpense, removeExpense }: any) {
+function ExpenseCard({ title, total, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense }: any) {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
       <div className="flex justify-between items-center mb-4">
@@ -252,13 +303,15 @@ function ExpenseCard({ title, total, items, setItems, t, color, addExpense, upda
           <span className="text-lg font-bold text-slate-700 dark:text-slate-200">
             ${total.toLocaleString()}
           </span>
-          <button
-            onClick={() => addExpense(setItems)}
-            className="p-1.5 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 dark:bg-slate-700 dark:hover:bg-rose-900/30 transition-colors"
-            title={t('add_item')}
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          {!isLocked && (
+            <button
+              onClick={() => addExpense(setItems)}
+              className="p-1.5 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 dark:bg-slate-700 dark:hover:bg-rose-900/30 transition-colors"
+              title={t('add_item')}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -270,22 +323,26 @@ function ExpenseCard({ title, total, items, setItems, t, color, addExpense, upda
               placeholder={t('name')}
               value={item.name}
               onChange={(e) => updateExpense(setItems, item.id, 'name', e.target.value)}
-              className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 outline-none text-sm transition-all"
+              readOnly={isLocked}
+              className={`flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && 'focus:ring-2 focus:ring-rose-500'} outline-none text-sm transition-all ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
             />
             <input
               type="number"
               placeholder={t('amount')}
               value={item.amount || ''}
               onChange={(e) => updateExpense(setItems, item.id, 'amount', Number(e.target.value))}
-              className="w-24 md:w-32 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-rose-500 outline-none text-sm transition-all text-right"
+              readOnly={isLocked}
+              className={`w-24 md:w-32 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && 'focus:ring-2 focus:ring-rose-500'} outline-none text-sm transition-all text-right ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
             />
-            <button
-              onClick={() => removeExpense(setItems, item.id)}
-              className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-              title={t('delete')}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {!isLocked && (
+              <button
+                onClick={() => removeExpense(setItems, item.id)}
+                className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                title={t('delete')}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         ))}
         {items.length === 0 && (
@@ -296,7 +353,7 @@ function ExpenseCard({ title, total, items, setItems, t, color, addExpense, upda
   );
 }
 
-function StockCard({ title, budget, items, setItems, t, color, addExpense, updateExpense, removeExpense }: any) {
+function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense }: any) {
   const currentTotal = items.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
   const remaining = budget - currentTotal;
 
@@ -304,12 +361,14 @@ function StockCard({ title, budget, items, setItems, t, color, addExpense, updat
     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold">{title}</h3>
-        <button
-          onClick={() => addExpense(setItems)}
-          className={`p-1 rounded-full bg-white dark:bg-slate-800 shadow-sm hover:text-${color}-500 transition-colors`}
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        {!isLocked && (
+          <button
+            onClick={() => addExpense(setItems)}
+            className={`p-1 rounded-full bg-white dark:bg-slate-800 shadow-sm hover:text-${color}-500 transition-colors`}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       <div className="space-y-3 mb-4">
@@ -320,21 +379,25 @@ function StockCard({ title, budget, items, setItems, t, color, addExpense, updat
               placeholder={t('name')}
               value={item.name}
               onChange={(e) => updateExpense(setItems, item.id, 'name', e.target.value)}
-              className={`flex-1 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-${color}-500 outline-none text-sm transition-all`}
+              readOnly={isLocked}
+              className={`flex-1 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && `focus:ring-2 focus:ring-${color}-500`} outline-none text-sm transition-all ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
             />
             <input
               type="number"
               placeholder={t('amount')}
               value={item.amount || ''}
               onChange={(e) => updateExpense(setItems, item.id, 'amount', Number(e.target.value))}
-              className={`w-20 md:w-28 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-${color}-500 outline-none text-sm transition-all text-right`}
+              readOnly={isLocked}
+              className={`w-20 md:w-28 px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && `focus:ring-2 focus:ring-${color}-500`} outline-none text-sm transition-all text-right ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
             />
-            <button
-              onClick={() => removeExpense(setItems, item.id)}
-              className="p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {!isLocked && (
+              <button
+                onClick={() => removeExpense(setItems, item.id)}
+                className="p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         ))}
         {items.length === 0 && (

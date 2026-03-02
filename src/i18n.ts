@@ -11,6 +11,8 @@ const resources = {
       "insurance_expenses": "保險支出",
       "disposable": "可支配",
       "investment": "投資",
+      "credit_loan": "信用貸款",
+      "usable_stock_amount": "可買股金額",
       "travel": "旅遊",
       "living": "生活費",
       "add_item": "新增項目",
@@ -19,7 +21,9 @@ const resources = {
       "percentage": "百分比",
       "name": "名稱",
       "amount": "金額",
-      "delete": "刪除"
+      "delete": "刪除",
+      "locked": "已鎖定",
+      "unlocked": "解鎖狀態"
     }
   },
   en: {
@@ -30,6 +34,8 @@ const resources = {
       "insurance_expenses": "Insurance Expenses",
       "disposable": "Disposable",
       "investment": "Investment",
+      "credit_loan": "Credit Loan",
+      "usable_stock_amount": "Usable for Stocks",
       "travel": "Travel",
       "living": "Living Expenses",
       "add_item": "Add Item",
@@ -38,7 +44,9 @@ const resources = {
       "percentage": "Percentage",
       "name": "Name",
       "amount": "Amount",
-      "delete": "Delete"
+      "delete": "Delete",
+      "locked": "Locked",
+      "unlocked": "Unlocked"
     }
   }
 };
