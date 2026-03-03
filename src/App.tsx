@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Minus, Trash2, Globe, Lock, Unlock, ChevronDown, ChevronRight } from 'lucide-react';
 import {
@@ -55,8 +55,15 @@ function App() {
   const [twStockPercent, setTwStockPercent] = useLocalStorage<number>('finance-tw-stock-pct', 70);
   const usStockPercent = 100 - twStockPercent; // Computed
 
+  const [investmentPercent, setInvestmentPercent] = useLocalStorage<number>('finance-investment-pct', 55);
+  const [livingPercent, setLivingPercent] = useLocalStorage<number>('finance-living-pct', 35);
+  const [travelPercent, setTravelPercent] = useLocalStorage<number>('finance-travel-pct', 10);
+
   const [twStocks, setTwStocks] = useLocalStorage<StockItem[]>('finance-tw-stocks', []);
   const [usStocks, setUsStocks] = useLocalStorage<StockItem[]>('finance-us-stocks', []);
+
+  // Modal State for editing percentages
+  const [editingPercent, setEditingPercent] = useState<{ id: string, name: string, value: number, setter: (val: number) => void } | null>(null);
 
   // Calculation Logic
   const {
@@ -75,10 +82,10 @@ function App() {
 
     const disposable = Math.max(0, Math.floor(Number(income) || 0) - fixedTotal - insuranceTotal);
 
-    const investmentGross = Math.floor(disposable * 0.55);
+    const investmentGross = Math.floor(disposable * (investmentPercent / 100));
     const investmentNet = Math.max(0, investmentGross - Math.floor(Number(creditLoan) || 0));
-    const travel = Math.floor(disposable * 0.10);
-    const living = Math.floor(disposable * 0.35);
+    const travel = Math.floor(disposable * (travelPercent / 100));
+    const living = Math.floor(disposable * (livingPercent / 100));
 
     const twStockAmount = Math.floor(investmentNet * ((twStockPercent || 0) / 100));
     const usStockAmount = investmentNet - twStockAmount; // Ensures exact total
@@ -94,24 +101,24 @@ function App() {
       twStockAmount,
       usStockAmount
     };
-  }, [income, fixedExpenses, insuranceExpenses, twStockPercent, creditLoan]);
+  }, [income, fixedExpenses, insuranceExpenses, twStockPercent, creditLoan, investmentPercent, livingPercent, travelPercent]);
 
   // Handlers
-  const addExpense = (setter: any) => {
-    setter((prev: any[]) => [...prev, { id: generateId(), name: '', amount: 0, percent: 0 }]);
+  const addExpense = <T extends { id: string, name: string, amount: number, percent?: number }>(setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+    setter((prev) => [...prev, { id: generateId(), name: '', amount: 0, percent: 0 } as unknown as T]);
   };
 
-  const updateExpense = (
-    setter: any,
+  const updateExpense = <T extends { id: string }>(
+    setter: React.Dispatch<React.SetStateAction<T[]>>,
     id: string,
-    field: string,
+    field: keyof T,
     value: string | number
   ) => {
-    setter((prev: any[]) => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    setter((prev) => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  const removeExpense = (setter: any, id: string) => {
-    setter((prev: any[]) => prev.filter(item => item.id !== id));
+  const removeExpense = <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => {
+    setter((prev) => prev.filter(item => item.id !== id));
   };
 
   return (
@@ -173,9 +180,9 @@ function App() {
 
             {/* Allocations Overview (Larger) */}
             <div className="md:w-[65%] flex flex-col justify-center gap-2">
-              <AllocationRow label={t('investment')} amount={investmentGross} percent="55%" color="blue" />
-              <AllocationRow label={t('living')} amount={living} percent="35%" color="amber" />
-              <AllocationRow label={t('travel')} amount={travel} percent="10%" color="purple" />
+              <AllocationRow label={t('investment')} amount={investmentGross} percent={investmentPercent} color="blue" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'investment', name: t('investment'), value: investmentPercent, setter: setInvestmentPercent })} />
+              <AllocationRow label={t('living')} amount={living} percent={livingPercent} color="amber" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'living', name: t('living'), value: livingPercent, setter: setLivingPercent })} />
+              <AllocationRow label={t('travel')} amount={travel} percent={travelPercent} color="purple" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'travel', name: t('travel'), value: travelPercent, setter: setTravelPercent })} />
             </div>
           </div>
         </div>
@@ -328,21 +335,93 @@ function App() {
           />
         </div>
       </div>
+
+      {/* Editing Percent Modal */}
+      {editingPercent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setEditingPercent(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-center mb-6 text-slate-800 dark:text-slate-100">
+                {t('edit', '編輯')} {editingPercent.name}
+              </h3>
+
+              <div className="flex items-center justify-center gap-6 mb-8">
+                <button
+                  onClick={() => setEditingPercent({ ...editingPercent, value: Math.max(0, editingPercent.value - 1) })}
+                  className="w-14 h-14 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 dark:bg-slate-700 dark:hover:bg-rose-900/50 transition-colors active:scale-95"
+                >
+                  <Minus className="w-6 h-6" />
+                </button>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={editingPercent.value === 0 ? '' : editingPercent.value}
+                    onChange={(e) => setEditingPercent({ ...editingPercent, value: Number(e.target.value) })}
+                    className="w-24 text-center text-4xl font-black bg-transparent border-none outline-none focus:ring-0 text-blue-600 dark:text-blue-400 p-0"
+                  />
+                  <span className="absolute -right-5 top-1 text-xl font-bold text-slate-400">%</span>
+                </div>
+
+                <button
+                  onClick={() => setEditingPercent({ ...editingPercent, value: Math.min(100, editingPercent.value + 1) })}
+                  className="w-14 h-14 flex items-center justify-center rounded-2xl bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-600 dark:bg-slate-700 dark:hover:bg-emerald-900/50 transition-colors active:scale-95"
+                >
+                  <Plus className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setEditingPercent(null)}
+                  className="flex-1 py-3.5 rounded-xl font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition-colors active:scale-95"
+                >
+                  {t('cancel', '取消')}
+                </button>
+                <button
+                  onClick={() => {
+                    editingPercent.setter(editingPercent.value);
+                    setEditingPercent(null);
+                  }}
+                  className="flex-1 py-3.5 rounded-xl font-bold tracking-wide text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 shadow-md shadow-blue-500/20 transition-colors active:scale-95"
+                >
+                  {t('confirm', '確認')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // Subcomponents for cleaner code
-function AllocationRow({ label, amount, percent, color }: any) {
-  const colorMap: any = {
+interface AllocationRowProps {
+  label: string;
+  amount: number;
+  percent: number | string;
+  color: 'blue' | 'amber' | 'purple';
+  onClick?: () => void;
+  isLocked?: boolean;
+}
+
+function AllocationRow({ label, amount, percent, color, onClick, isLocked }: AllocationRowProps) {
+  const colorMap: Record<string, string> = {
     blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
     purple: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
   };
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800">
+    <div
+      className={`flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 transition-colors ${!isLocked ? 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-[0.98]' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+      onClick={!isLocked ? onClick : undefined}
+    >
       <div className="flex items-center gap-3">
-        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${colorMap[color]}`}>{percent}</span>
+        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${colorMap[color]} flex items-center gap-1`}>
+          {percent}%
+        </span>
         <span className="font-medium">{label}</span>
       </div>
       <span className="text-lg font-bold">${amount.toLocaleString()}</span>
@@ -350,7 +429,21 @@ function AllocationRow({ label, amount, percent, color }: any) {
   );
 }
 
-function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense }: any) {
+interface ExpenseCardProps {
+  id: string;
+  title: string;
+  total: number;
+  items: ExpenseItem[];
+  setItems: React.Dispatch<React.SetStateAction<ExpenseItem[]>>;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  color: 'rose' | 'emerald' | 'blue' | 'amber' | 'purple' | 'indigo';
+  isLocked: boolean;
+  addExpense: (setter: React.Dispatch<React.SetStateAction<ExpenseItem[]>>) => void;
+  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number) => void;
+  removeExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => void;
+}
+
+function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense }: ExpenseCardProps) {
   const [isOpen, setIsOpen] = useLocalStorage<boolean>(`finance-expense-open-${id}`, true);
 
   return (
@@ -390,7 +483,7 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
 
       <div className={`transition-all duration-300 overflow-hidden ${isOpen ? 'mt-4 max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
         <div className="space-y-3 pb-1">
-          {items.map((item: any) => (
+          {items.map((item: ExpenseItem) => (
             <div key={item.id} className="flex items-center gap-2 group">
               <input
                 type="text"
@@ -429,7 +522,18 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
   );
 }
 
-function SortableStockItem({ item, t, color, isLocked, updateExpense, removeExpense, setItems, effectiveBudget }: any) {
+interface SortableStockItemProps {
+  item: StockItem;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  color: 'rose' | 'emerald' | 'blue' | 'amber' | 'purple' | 'indigo';
+  isLocked: boolean;
+  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number) => void;
+  removeExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => void;
+  setItems: React.Dispatch<React.SetStateAction<StockItem[]>>;
+  effectiveBudget: number;
+}
+
+function SortableStockItem({ item, t, color, isLocked, updateExpense, removeExpense, setItems, effectiveBudget }: SortableStockItemProps) {
   const {
     attributes,
     listeners,
@@ -497,11 +601,26 @@ function SortableStockItem({ item, t, color, isLocked, updateExpense, removeExpe
   );
 }
 
-function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense, isInvestHalf, setIsInvestHalf }: any) {
+interface StockCardProps {
+  title: string;
+  budget: number;
+  items: StockItem[];
+  setItems: React.Dispatch<React.SetStateAction<StockItem[]>>;
+  t: (key: string, options?: Record<string, unknown>) => string;
+  color: 'rose' | 'emerald' | 'blue' | 'amber' | 'purple' | 'indigo';
+  isLocked: boolean;
+  addExpense: (setter: React.Dispatch<React.SetStateAction<StockItem[]>>) => void;
+  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number) => void;
+  removeExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => void;
+  isInvestHalf?: boolean;
+  setIsInvestHalf?: (val: boolean) => void;
+}
+
+function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense, isInvestHalf, setIsInvestHalf }: StockCardProps) {
   const effectiveBudget = isInvestHalf ? Math.floor(budget / 2) : budget;
 
-  const currentTotal = items.reduce((sum: number, item: any) => sum + Math.floor(effectiveBudget * ((item.percent || 0) / 100)), 0);
-  const totalPercent = items.reduce((sum: number, item: any) => sum + (item.percent || 0), 0);
+  const currentTotal = items.reduce((sum: number, item: StockItem) => sum + Math.floor(effectiveBudget * ((item.percent || 0) / 100)), 0);
+  const totalPercent = items.reduce((sum: number, item: StockItem) => sum + (item.percent || 0), 0);
   const remaining = effectiveBudget - currentTotal;
 
   const sensors = useSensors(
@@ -522,13 +641,13 @@ function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpe
     })
   );
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: { active: { id: string | number }, over: { id: string | number } | null }) => {
     const { active, over } = event;
 
     if (active && over && active.id !== over.id) {
-      setItems((itemsList: any[]) => {
-        const oldIndex = itemsList.findIndex((it: any) => it.id === active.id);
-        const newIndex = itemsList.findIndex((it: any) => it.id === over.id);
+      setItems((itemsList: StockItem[]) => {
+        const oldIndex = itemsList.findIndex((it: StockItem) => it.id === active.id);
+        const newIndex = itemsList.findIndex((it: StockItem) => it.id === over.id);
         return arrayMove(itemsList, oldIndex, newIndex);
       });
     }
@@ -571,10 +690,10 @@ function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpe
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={items.map((it: any) => it.id)}
+            items={items.map((it: StockItem) => it.id)}
             strategy={verticalListSortingStrategy}
           >
-            {items.map((item: any) => (
+            {items.map((item: StockItem) => (
               <SortableStockItem
                 key={item.id}
                 item={item}
