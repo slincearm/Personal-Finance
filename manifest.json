@@ -1,19 +1,20 @@
 {
-    "name": "個人財務規劃",
+    "name": "個人財務規劃 (Personal Finance)",
     "short_name": "財務規劃",
     "start_url": "/Personal-Finance/",
     "display": "standalone",
-    "background_color": "#f8fafc",
+    "background_color": "#0f172a",
     "theme_color": "#0f172a",
     "icons": [
         {
-            "src": "/Personal-Finance/icon-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png"
+            "src": "icon.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "purpose": "any maskable"
         },
         {
-            "src": "/Personal-Finance/icon-512x512.png",
-            "sizes": "512x512",
+            "src": "apple-touch-icon.png",
+            "sizes": "1024x1024",
             "type": "image/png"
         }
     ]
