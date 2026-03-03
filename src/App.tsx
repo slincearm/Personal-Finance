@@ -70,17 +70,17 @@ function App() {
     twStockAmount,
     usStockAmount
   } = useMemo(() => {
-    const fixedTotal = fixedExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const insuranceTotal = insuranceExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const fixedTotal = fixedExpenses.reduce((sum, item) => sum + Math.floor(Number(item.amount) || 0), 0);
+    const insuranceTotal = insuranceExpenses.reduce((sum, item) => sum + Math.floor(Number(item.amount) || 0), 0);
 
-    const disposable = Math.max(0, income - fixedTotal - insuranceTotal);
+    const disposable = Math.max(0, Math.floor(Number(income) || 0) - fixedTotal - insuranceTotal);
 
     const investmentGross = Math.floor(disposable * 0.55);
-    const investmentNet = Math.max(0, investmentGross - creditLoan);
+    const investmentNet = Math.max(0, investmentGross - Math.floor(Number(creditLoan) || 0));
     const travel = Math.floor(disposable * 0.10);
     const living = Math.floor(disposable * 0.35);
 
-    const twStockAmount = Math.floor(investmentNet * (twStockPercent / 100));
+    const twStockAmount = Math.floor(investmentNet * ((twStockPercent || 0) / 100));
     const usStockAmount = investmentNet - twStockAmount; // Ensures exact total
 
     return {
@@ -172,7 +172,7 @@ function App() {
 
             {/* Allocations Overview (Larger) */}
             <div className="md:w-[65%] flex flex-col justify-center gap-2">
-              <AllocationRow label={t('investment')} amount={investmentNet} percent="55%" color="blue" />
+              <AllocationRow label={t('investment')} amount={investmentGross} percent="55%" color="blue" />
               <AllocationRow label={t('living')} amount={living} percent="35%" color="amber" />
               <AllocationRow label={t('travel')} amount={travel} percent="10%" color="purple" />
             </div>
