@@ -8,4 +8,5 @@ export interface StockItem {
     id: string;
     name: string;
     amount: number;
+    percent?: number;
 }
