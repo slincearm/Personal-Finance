@@ -154,6 +154,7 @@ function App() {
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
             <input
               type="number"
+              inputMode="decimal"
               value={income || ''}
               onChange={(e) => setIncome(Number(e.target.value))}
               readOnly={false} // Income is always editable per requirement
@@ -208,6 +209,7 @@ function App() {
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-400 text-sm font-medium">$</span>
                 <input
                   type="number"
+                  inputMode="decimal"
                   value={creditLoan || ''}
                   onChange={(e) => setCreditLoan(Number(e.target.value))}
                   readOnly={isLocked}
@@ -400,6 +402,7 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
               />
               <input
                 type="number"
+                inputMode="decimal"
                 placeholder={t('amount')}
                 value={item.amount || ''}
                 onChange={(e) => updateExpense(setItems, item.id, 'amount', Number(e.target.value))}
@@ -465,6 +468,7 @@ function SortableStockItem({ item, t, color, isLocked, updateExpense, removeExpe
       <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
         <input
           type="number"
+          inputMode="decimal"
           placeholder="0"
           value={item.percent === 0 ? '' : item.percent}
           onChange={(e) => updateExpense(setItems, item.id, 'percent', Number(e.target.value))}
