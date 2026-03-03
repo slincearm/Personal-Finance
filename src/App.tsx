@@ -34,6 +34,7 @@ function App() {
 
   // UI State
   const [isInvestmentOpen, setIsInvestmentOpen] = useLocalStorage<boolean>('finance-investment-open', true);
+  const [isExpensesOpen, setIsExpensesOpen] = useLocalStorage<boolean>('finance-expenses-open', true);
 
   // Lock state
   const [isLocked, setIsLocked] = useLocalStorage<boolean>('finance-locked', false);
@@ -306,33 +307,55 @@ function App() {
         </div>
 
         {/* Expenses Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ExpenseCard
-            id="fixed"
-            title={t('fixed_expenses')}
-            total={fixedTotal}
-            items={fixedExpenses}
-            setItems={setFixedExpenses}
-            t={t}
-            color="rose"
-            isLocked={isLocked}
-            addExpense={addExpense}
-            updateExpense={updateExpense}
-            removeExpense={removeExpense}
-          />
-          <ExpenseCard
-            id="insurance"
-            title={t('insurance_expenses')}
-            total={insuranceTotal}
-            items={insuranceExpenses}
-            setItems={setInsuranceExpenses}
-            t={t}
-            color="rose"
-            isLocked={isLocked}
-            addExpense={addExpense}
-            updateExpense={updateExpense}
-            removeExpense={removeExpense}
-          />
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div
+            className="flex justify-between items-center mb-4 cursor-pointer group select-none"
+            onClick={() => setIsExpensesOpen(!isExpensesOpen)}
+          >
+            <h2 className="text-xl font-bold flex items-center gap-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              {t('expenses', '支出')}
+              {isExpensesOpen ? (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-slate-400" />
+              )}
+            </h2>
+            <span className="text-xl font-bold text-rose-600 dark:text-rose-400">
+              ${(fixedTotal + insuranceTotal).toLocaleString()}
+            </span>
+          </div>
+
+          <div className={`transition-all duration-300 overflow-hidden ${isExpensesOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ExpenseCard
+                id="fixed"
+                title={t('fixed_expenses')}
+                total={fixedTotal}
+                items={fixedExpenses}
+                setItems={setFixedExpenses}
+                t={t}
+                color="rose"
+                isLocked={isLocked}
+                addExpense={addExpense}
+                updateExpense={updateExpense}
+                removeExpense={removeExpense}
+              />
+              <ExpenseCard
+                id="insurance"
+                title={t('insurance_expenses')}
+                total={insuranceTotal}
+                items={insuranceExpenses}
+                setItems={setInsuranceExpenses}
+                t={t}
+                color="rose"
+                isLocked={isLocked}
+                addExpense={addExpense}
+                updateExpense={updateExpense}
+                removeExpense={removeExpense}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
