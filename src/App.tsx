@@ -226,53 +226,44 @@ function App() {
             </span>
           </div>
 
-          <div className={`transition-all duration-300 overflow-hidden ${isTransferOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <div className="space-y-3 pb-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {transfers.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">{item.name}</span>
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400">${item.amount.toLocaleString()}</span>
+          <div className={`transition-all duration-300 overflow-hidden ${isTransferOpen ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+            <div className="flex flex-col rounded-xl overflow-hidden border border-slate-100 dark:border-slate-700/80">
+              {transfers.map((item, index) => (
+                <div key={item.id} className={`flex items-center justify-between p-3 transition-colors ${index % 2 === 0 ? 'bg-indigo-50/60 dark:bg-slate-700/60' : 'bg-transparent dark:bg-transparent'}`}>
+                  <span className="font-medium text-slate-600 dark:text-slate-300 ml-1">{item.name}</span>
+                  <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 mr-1">${item.amount.toLocaleString()}</span>
                 </div>
               ))}
               {transfers.length === 0 && (
-                <p className="text-sm text-center text-slate-400 py-4 italic border border-dashed rounded-lg border-slate-200 dark:border-slate-700 md:col-span-2">No transfers</p>
+                <p className="text-sm text-center text-slate-400 py-4 italic bg-slate-50 dark:bg-slate-900/50">No transfers</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Disposable & Allocations Section */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
           <div
-            className="flex justify-between items-center mb-3 cursor-pointer group select-none"
+            className="flex justify-between items-center cursor-pointer group select-none mb-0"
             onClick={() => setIsDisposableOpen(!isDisposableOpen)}
           >
-            <h2 className="text-base font-semibold flex items-center gap-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+            <h2 className="text-xl font-bold flex items-center gap-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
               <span className="w-2 h-2 rounded-full bg-teal-500"></span>
               {t('disposable')}
               {isDisposableOpen ? (
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-5 h-5 text-slate-400" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-5 h-5 text-slate-400" />
               )}
             </h2>
+            <span className="text-xl font-bold text-teal-600 dark:text-teal-400">${disposable.toLocaleString()}</span>
           </div>
 
-          <div className={`flex flex-col gap-3 ${isDisposableOpen ? 'md:flex-row' : ''}`}>
-            {/* Disposable Income (Smaller) */}
-            <div className={`p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 flex flex-col justify-center transition-all duration-300 ${isDisposableOpen ? 'md:w-[30%]' : 'w-full'}`}>
-              <p className="text-xl md:text-2xl font-bold text-emerald-700 dark:text-emerald-300 truncate text-center">
-                ${disposable.toLocaleString()}
-              </p>
-            </div>
-
-            {/* Allocations Overview (Larger) */}
-            <div className={`transition-all duration-300 overflow-hidden flex flex-col justify-center ${isDisposableOpen ? 'md:w-[70%] max-h-[500px] opacity-100' : 'max-h-0 md:max-h-[500px] opacity-0 md:w-0'}`}>
-              <div className="flex flex-col justify-center gap-2 min-w-[240px]">
-                <AllocationRow label={t('investment')} amount={investmentGross} percent={investmentPercent} color="blue" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'investment', name: t('investment'), value: investmentPercent, setter: setInvestmentPercent })} />
-                <AllocationRow label={t('living')} amount={living} percent={livingPercent} color="amber" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'living', name: t('living'), value: livingPercent, setter: setLivingPercent })} />
-                <AllocationRow label={t('travel')} amount={travel} percent={travelPercent} color="purple" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'travel', name: t('travel'), value: travelPercent, setter: setTravelPercent })} />
-              </div>
+          <div className={`transition-all duration-300 overflow-hidden ${isDisposableOpen ? 'max-h-[1000px] opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+            <div className="flex flex-col gap-2">
+              <AllocationRow label={t('investment')} amount={investmentGross} percent={investmentPercent} color="blue" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'investment', name: t('investment'), value: investmentPercent, setter: setInvestmentPercent })} />
+              <AllocationRow label={t('living')} amount={living} percent={livingPercent} color="amber" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'living', name: t('living'), value: livingPercent, setter: setLivingPercent })} />
+              <AllocationRow label={t('travel')} amount={travel} percent={travelPercent} color="purple" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'travel', name: t('travel'), value: travelPercent, setter: setTravelPercent })} />
             </div>
           </div>
         </div>
