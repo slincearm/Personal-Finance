@@ -625,7 +625,7 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
                 value={item.name}
                 onChange={(e) => updateExpense(setItems, item.id, 'name', e.target.value)}
                 readOnly={isLocked}
-                className={`flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && 'focus:ring-2 focus:ring-rose-500'} outline-none text-sm transition-all ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
+                className={`flex-1 min-w-[100px] px-2 sm:px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && 'focus:ring-2 focus:ring-rose-500'} outline-none text-sm transition-all ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
               />
               <input
                 type="number"
@@ -634,12 +634,12 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
                 value={item.amount || ''}
                 onChange={(e) => updateExpense(setItems, item.id, 'amount', Number(e.target.value))}
                 readOnly={isLocked}
-                className={`w-24 md:w-32 px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && 'focus:ring-2 focus:ring-rose-500'} outline-none text-sm transition-all text-right ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
+                className={`w-[60px] sm:w-[90px] md:w-32 flex-shrink-0 px-2 sm:px-3 py-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-none ring-1 ring-slate-200 dark:ring-slate-700 ${!isLocked && 'focus:ring-2 focus:ring-rose-500'} outline-none text-sm transition-all text-right ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}
               />
               {!isLocked && (
                 <button
                   onClick={() => removeExpense(setItems, item.id)}
-                  className="p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                  className="flex-shrink-0 p-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
                   title={t('delete')}
                 >
                   <Trash2 className="w-4 h-4" />
