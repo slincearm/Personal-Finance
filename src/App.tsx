@@ -33,11 +33,17 @@ function App() {
   };
 
   // UI State
+  const [isDisposableOpen, setIsDisposableOpen] = useLocalStorage<boolean>('finance-disposable-open', true);
   const [isInvestmentOpen, setIsInvestmentOpen] = useLocalStorage<boolean>('finance-investment-open', true);
   const [isExpensesOpen, setIsExpensesOpen] = useLocalStorage<boolean>('finance-expenses-open', true);
+  const [isTransferOpen, setIsTransferOpen] = useLocalStorage<boolean>('finance-transfer-open', true);
 
   // Lock state
   const [isLocked, setIsLocked] = useLocalStorage<boolean>('finance-locked', false);
+
+  // Transfers state
+  const [isFixedTransfer, setIsFixedTransfer] = useLocalStorage<boolean>('finance-fixed-transfer', false);
+  const [isInsuranceTransfer, setIsInsuranceTransfer] = useLocalStorage<boolean>('finance-insurance-transfer', false);
 
   // State
   const [income, setIncome] = useLocalStorage<number>('finance-income', 50000);
@@ -76,7 +82,9 @@ function App() {
     travel,
     living,
     twStockAmount,
-    usStockAmount
+    usStockAmount,
+    transfers,
+    transferTotal
   } = useMemo(() => {
     const fixedTotal = fixedExpenses.reduce((sum, item) => sum + Math.floor(Number(item.amount) || 0), 0);
     const insuranceTotal = insuranceExpenses.reduce((sum, item) => sum + Math.floor(Number(item.amount) || 0), 0);
@@ -91,6 +99,31 @@ function App() {
     const twStockAmount = Math.floor(investmentNet * ((twStockPercent || 0) / 100));
     const usStockAmount = investmentNet - twStockAmount; // Ensures exact total
 
+    // Transfer calculations
+    const transfersList: { id: string, name: string, amount: number }[] = [];
+    if (creditLoan > 0) transfersList.push({ id: 'credit', name: t('credit_loan'), amount: creditLoan });
+    if (twStockAmount > 0) transfersList.push({ id: 'tw_stock', name: t('tw_stock'), amount: twStockAmount });
+    if (usStockAmount > 0) transfersList.push({ id: 'us_stock', name: t('us_stock'), amount: usStockAmount });
+    if (travel > 0) transfersList.push({ id: 'travel', name: t('travel'), amount: travel });
+
+    if (isFixedTransfer) {
+      if (fixedTotal > 0) transfersList.push({ id: 'fixed-total', name: t('fixed_expenses'), amount: fixedTotal });
+    } else {
+      fixedExpenses.filter(item => item.isTransfer).forEach(item => {
+        if (item.amount > 0) transfersList.push({ id: `fixed-${item.id}`, name: item.name || 'Unnamed', amount: item.amount });
+      });
+    }
+
+    if (isInsuranceTransfer) {
+      if (insuranceTotal > 0) transfersList.push({ id: 'insurance-total', name: t('insurance_expenses'), amount: insuranceTotal });
+    } else {
+      insuranceExpenses.filter(item => item.isTransfer).forEach(item => {
+        if (item.amount > 0) transfersList.push({ id: `ins-${item.id}`, name: item.name || 'Unnamed', amount: item.amount });
+      });
+    }
+
+    const transferTotal = transfersList.reduce((sum, item) => sum + item.amount, 0);
+
     return {
       fixedTotal,
       insuranceTotal,
@@ -100,9 +133,11 @@ function App() {
       travel,
       living,
       twStockAmount,
-      usStockAmount
+      usStockAmount,
+      transfers: transfersList,
+      transferTotal
     };
-  }, [income, fixedExpenses, insuranceExpenses, twStockPercent, creditLoan, investmentPercent, livingPercent, travelPercent]);
+  }, [income, fixedExpenses, insuranceExpenses, twStockPercent, creditLoan, investmentPercent, livingPercent, travelPercent, isFixedTransfer, isInsuranceTransfer, t]);
 
   // Handlers
   const addExpense = <T extends { id: string, name: string, amount: number, percent?: number }>(setter: React.Dispatch<React.SetStateAction<T[]>>) => {
@@ -113,7 +148,7 @@ function App() {
     setter: React.Dispatch<React.SetStateAction<T[]>>,
     id: string,
     field: keyof T,
-    value: string | number
+    value: string | number | boolean
   ) => {
     setter((prev) => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
@@ -152,13 +187,13 @@ function App() {
           </div>
         </header>
 
-        {/* Top Section: Income & Allocations */}
+        {/* Top Section: Income */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
           <h2 className="text-lg font-semibold text-slate-600 dark:text-slate-300 mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             {t('income')}
           </h2>
-          <div className="relative mb-6">
+          <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
             <input
               type="number"
@@ -169,21 +204,75 @@ function App() {
               className="w-full pl-8 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-none ring-1 ring-slate-200 dark:ring-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-xl font-bold"
             />
           </div>
+        </div>
 
-          <div className="flex flex-col md:flex-row gap-4">
+        {/* Transfers Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div
+            className="flex justify-between items-center mb-4 cursor-pointer group select-none"
+            onClick={() => setIsTransferOpen(!isTransferOpen)}
+          >
+            <h2 className="text-xl font-bold flex items-center gap-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              {t('transfers')}
+              {isTransferOpen ? (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-slate-400" />
+              )}
+            </h2>
+            <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+              ${transferTotal.toLocaleString()}
+            </span>
+          </div>
+
+          <div className={`transition-all duration-300 overflow-hidden ${isTransferOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="space-y-3 pb-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {transfers.map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{item.name}</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">${item.amount.toLocaleString()}</span>
+                </div>
+              ))}
+              {transfers.length === 0 && (
+                <p className="text-sm text-center text-slate-400 py-4 italic border border-dashed rounded-lg border-slate-200 dark:border-slate-700 md:col-span-2">No transfers</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Disposable & Allocations Section */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 dark:border-slate-700">
+          <div
+            className="flex justify-between items-center mb-3 cursor-pointer group select-none"
+            onClick={() => setIsDisposableOpen(!isDisposableOpen)}
+          >
+            <h2 className="text-base font-semibold flex items-center gap-2 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+              <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+              {t('disposable')}
+              {isDisposableOpen ? (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              )}
+            </h2>
+          </div>
+
+          <div className={`flex flex-col gap-3 ${isDisposableOpen ? 'md:flex-row' : ''}`}>
             {/* Disposable Income (Smaller) */}
-            <div className="md:w-[35%] p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 flex flex-col justify-center">
-              <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-1">{t('disposable')}</p>
-              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 truncate">
+            <div className={`p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 flex flex-col justify-center transition-all duration-300 ${isDisposableOpen ? 'md:w-[30%]' : 'w-full'}`}>
+              <p className="text-xl md:text-2xl font-bold text-emerald-700 dark:text-emerald-300 truncate text-center">
                 ${disposable.toLocaleString()}
               </p>
             </div>
 
             {/* Allocations Overview (Larger) */}
-            <div className="md:w-[65%] flex flex-col justify-center gap-2">
-              <AllocationRow label={t('investment')} amount={investmentGross} percent={investmentPercent} color="blue" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'investment', name: t('investment'), value: investmentPercent, setter: setInvestmentPercent })} />
-              <AllocationRow label={t('living')} amount={living} percent={livingPercent} color="amber" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'living', name: t('living'), value: livingPercent, setter: setLivingPercent })} />
-              <AllocationRow label={t('travel')} amount={travel} percent={travelPercent} color="purple" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'travel', name: t('travel'), value: travelPercent, setter: setTravelPercent })} />
+            <div className={`transition-all duration-300 overflow-hidden flex flex-col justify-center ${isDisposableOpen ? 'md:w-[70%] max-h-[500px] opacity-100' : 'max-h-0 md:max-h-[500px] opacity-0 md:w-0'}`}>
+              <div className="flex flex-col justify-center gap-2 min-w-[240px]">
+                <AllocationRow label={t('investment')} amount={investmentGross} percent={investmentPercent} color="blue" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'investment', name: t('investment'), value: investmentPercent, setter: setInvestmentPercent })} />
+                <AllocationRow label={t('living')} amount={living} percent={livingPercent} color="amber" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'living', name: t('living'), value: livingPercent, setter: setLivingPercent })} />
+                <AllocationRow label={t('travel')} amount={travel} percent={travelPercent} color="purple" isLocked={isLocked} onClick={() => setEditingPercent({ id: 'travel', name: t('travel'), value: travelPercent, setter: setTravelPercent })} />
+              </div>
             </div>
           </div>
         </div>
@@ -340,6 +429,8 @@ function App() {
                 addExpense={addExpense}
                 updateExpense={updateExpense}
                 removeExpense={removeExpense}
+                isCardTransfer={isFixedTransfer}
+                setIsCardTransfer={setIsFixedTransfer}
               />
               <ExpenseCard
                 id="insurance"
@@ -353,10 +444,13 @@ function App() {
                 addExpense={addExpense}
                 updateExpense={updateExpense}
                 removeExpense={removeExpense}
+                isCardTransfer={isInsuranceTransfer}
+                setIsCardTransfer={setIsInsuranceTransfer}
               />
             </div>
           </div>
         </div>
+
       </div>
 
       {/* Editing Percent Modal */}
@@ -462,11 +556,13 @@ interface ExpenseCardProps {
   color: 'rose' | 'emerald' | 'blue' | 'amber' | 'purple' | 'indigo';
   isLocked: boolean;
   addExpense: (setter: React.Dispatch<React.SetStateAction<ExpenseItem[]>>) => void;
-  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number) => void;
+  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number | boolean) => void;
   removeExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => void;
+  isCardTransfer?: boolean;
+  setIsCardTransfer?: (val: boolean) => void;
 }
 
-function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense }: ExpenseCardProps) {
+function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, addExpense, updateExpense, removeExpense, isCardTransfer, setIsCardTransfer }: ExpenseCardProps) {
   const [isOpen, setIsOpen] = useLocalStorage<boolean>(`finance-expense-open-${id}`, true);
 
   return (
@@ -476,8 +572,22 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
         onClick={() => setIsOpen(!isOpen)}
       >
         <h2 className="text-lg font-semibold flex items-center gap-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-          <span className={`w-2 h-2 rounded-full bg-${color}-500`}></span>
-          {title}
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full bg-${color}-500`}></span>
+            {setIsCardTransfer !== undefined && !isLocked && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCardTransfer(!isCardTransfer);
+                }}
+                className={`w-6 h-6 flex flex-shrink-0 items-center justify-center rounded text-xs font-bold transition-colors cursor-pointer border ${isCardTransfer ? 'bg-indigo-500 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 grayscale'}`}
+                title={t('transfer_toggle')}
+              >
+                T
+              </div>
+            )}
+            {title}
+          </div>
           {isOpen ? (
             <ChevronDown className="w-4 h-4 text-slate-400" />
           ) : (
@@ -508,6 +618,16 @@ function ExpenseCard({ id, title, total, items, setItems, t, color, isLocked, ad
         <div className="space-y-3 pb-1">
           {items.map((item: ExpenseItem) => (
             <div key={item.id} className="flex items-center gap-2 group">
+              {!isLocked && (
+                <button
+                  onClick={() => updateExpense(setItems, item.id, 'isTransfer', !item.isTransfer)}
+                  disabled={isCardTransfer}
+                  className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-xs font-bold transition-colors border ${item.isTransfer ? 'bg-indigo-500 text-white border-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'} ${isCardTransfer ? 'opacity-40 grayscale cursor-not-allowed' : (!item.isTransfer ? 'grayscale' : '')}`}
+                  title={t('transfer_toggle')}
+                >
+                  T
+                </button>
+              )}
               <input
                 type="text"
                 placeholder={t('name')}
@@ -550,7 +670,7 @@ interface SortableStockItemProps {
   t: (key: string, options?: Record<string, unknown>) => string;
   color: 'rose' | 'emerald' | 'blue' | 'amber' | 'purple' | 'indigo';
   isLocked: boolean;
-  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number) => void;
+  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number | boolean) => void;
   removeExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => void;
   setItems: React.Dispatch<React.SetStateAction<StockItem[]>>;
   effectiveBudget: number;
@@ -633,7 +753,7 @@ interface StockCardProps {
   color: 'rose' | 'emerald' | 'blue' | 'amber' | 'purple' | 'indigo';
   isLocked: boolean;
   addExpense: (setter: React.Dispatch<React.SetStateAction<StockItem[]>>) => void;
-  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number) => void;
+  updateExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string, field: keyof T, value: string | number | boolean) => void;
   removeExpense: <T extends { id: string }>(setter: React.Dispatch<React.SetStateAction<T[]>>, id: string) => void;
   isInvestHalf?: boolean;
   setIsInvestHalf?: (val: boolean) => void;
@@ -678,17 +798,27 @@ function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpe
 
   return (
     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 h-full flex flex-col">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center mb-4 gap-2">
         <h3 className="font-semibold">{title}</h3>
-        {!isLocked && (
-          <button
-            onClick={() => addExpense(setItems)}
-            className={`p-1.5 rounded-full bg-white dark:bg-slate-800 shadow-sm hover:text-${color}-500 transition-colors border border-slate-200 dark:border-slate-700`}
-            title={t('add_item')}
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        )}
+
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-200/50 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
+            <span className="text-slate-500 dark:text-slate-400 hidden sm:inline">Total:</span>
+            <span className={`font-semibold ${totalPercent > 100 ? 'text-red-500' : totalPercent === 100 ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-300'}`}>{totalPercent}%</span>
+            <span className={`font-semibold ${remaining < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+              ${currentTotal.toLocaleString()}
+            </span>
+          </div>
+          {!isLocked && (
+            <button
+              onClick={() => addExpense(setItems)}
+              className={`p-1.5 rounded-full bg-white dark:bg-slate-800 shadow-sm hover:text-${color}-500 transition-colors border border-slate-200 dark:border-slate-700 shrink-0`}
+              title={t('add_item')}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {setIsInvestHalf && (
@@ -736,17 +866,8 @@ function StockCard({ title, budget, items, setItems, t, color, isLocked, addExpe
         )}
       </div>
 
-      <div className="space-y-2 pt-3 border-t border-slate-200 dark:border-slate-700 text-sm">
+      <div className="pt-3 border-t border-slate-200 dark:border-slate-700 text-sm">
         <div className="flex justify-between items-center">
-          <span className="text-slate-500 dark:text-slate-400">Total Allocated</span>
-          <div className="flex items-center gap-3">
-            <span className={`font-semibold ${totalPercent > 100 ? 'text-red-500' : totalPercent === 100 ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-300'}`}>{totalPercent}%</span>
-            <span className={`font-semibold ${remaining < 0 ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
-              ${currentTotal.toLocaleString()}
-            </span>
-          </div>
-        </div>
-        <div className="flex justify-between items-center mt-1 pt-2 border-t border-slate-200 dark:border-slate-700 border-dashed">
           <span className="text-slate-500 dark:text-slate-400">Rem</span>
           <span className={`font-semibold ${remaining < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
             ${remaining.toLocaleString()}

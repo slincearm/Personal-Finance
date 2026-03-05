@@ -23,7 +23,9 @@ const resources = {
       "amount": "金額",
       "delete": "刪除",
       "locked": "已鎖定",
-      "unlocked": "解鎖狀態"
+      "unlocked": "解鎖狀態",
+      "transfers": "轉帳",
+      "transfer_toggle": "設為轉帳項目"
     }
   },
   en: {
@@ -46,7 +48,9 @@ const resources = {
       "amount": "Amount",
       "delete": "Delete",
       "locked": "Locked",
-      "unlocked": "Unlocked"
+      "unlocked": "Unlocked",
+      "transfers": "Transfers",
+      "transfer_toggle": "Set as Transfer"
     }
   }
 };
